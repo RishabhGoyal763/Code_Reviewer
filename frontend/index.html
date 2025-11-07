@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Code Reviewer • Gemini</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 w-full">
+  <header class="bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">AI Code Reviewer</h1>
+      <span class="text-xs text-slate-500">Powered by Gemini API</span>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 grid gap-6">
+    <section class="bg-white rounded-2xl shadow p-4 md:p-6">
+      <label class="text-sm font-medium">Paste your code below</label>
+      <textarea id="codeInput" class="w-full h-56 font-mono text-sm rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 mt-2" placeholder="// Paste code here..."></textarea>
+
+      <div class="flex gap-3 mt-4">
+        <select id="langSelect" class="rounded-xl border border-slate-300 p-2">
+          <option value="">Auto-detect</option>
+          <option>Python</option>
+          <option>JavaScript</option>
+          <option>TypeScript</option>
+          <option>Java</option>
+          <option>C</option>
+          <option>C++</option>
+          <option>C#</option>
+          <option>Go</option>
+          <option>Rust</option>
+          <option>PHP</option>
+          <option>Ruby</option>
+          <option>Swift</option>
+          <option>Kotlin</option>
+          <option>Dart</option>
+          <option>Scala</option>
+          <option>R</option>
+          <option>SQL</option>
+          <option>HTML</option>
+          <option>CSS</option>
+        </select>
+
+        <button id="reviewBtn" class="flex-1 bg-indigo-600 text-white rounded-xl px-4 py-2 font-medium hover:bg-indigo-700 disabled:opacity-50">
+          Review Code
+        </button>
+      </div>
+    </section>
+
+    <!-- Output / Review Section -->
+    <section id="output" class="bg-white rounded-2xl shadow p-4 md:p-6 hidden">
+      <h2 class="text-lg font-semibold mb-3">Code Review Result</h2>
+
+      <p id="codeStatus" class="text-base font-medium"></p>
+      <div id="issuesFound" class="mt-4"></div>
+      <div id="suggestionsBlock" class="mt-4"></div>
+    </section>
+  </main>
+
+  <script>
+    const backendBase = 'http://localhost:5050';
+    const reviewBtn = document.getElementById('reviewBtn');
+    const codeInput = document.getElementById('codeInput');
+    const langSelect = document.getElementById('langSelect');
+    const output = document.getElementById('output');
+    const codeStatus = document.getElementById('codeStatus');
+    const issuesFound = document.getElementById('issuesFound');
+    const suggestionsBlock = document.getElementById('suggestionsBlock');
+
+    reviewBtn.addEventListener('click', async () => {
+      const code = codeInput.value.trim();
+      const language = langSelect.value;
+      if (!code) {
+        alert('Please paste some code first.');
+        return;
+      }
+
+      reviewBtn.disabled = true;
+      reviewBtn.textContent = 'Reviewing...';
+
+      try {
+        const res = await fetch(backendBase + '/api/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, language })
+        });
+        const data = await res.json();
+        output.classList.remove('hidden');
+
+        // Clear old content
+        codeStatus.innerHTML = '';
+        issuesFound.innerHTML = '';
+        suggestionsBlock.innerHTML = '';
+
+        if (data.code_status) {
+          const statusHTML = data.code_status.toLowerCase() === 'correct'
+            ? `<span class='text-emerald-600 font-semibold'>✅ Code is Correct</span>`
+            : `<span class='text-red-600 font-semibold'>❌ Code is Incorrect</span>`;
+          codeStatus.innerHTML = `Code Status: ${statusHTML}`;
+        }
+
+        if (data.issues_found && data.issues_found.length) {
+          let html = `<h3 class="font-semibold text-slate-800">Issues Found:</h3><ul class="list-disc ml-5 mt-2 text-sm text-slate-700">`;
+          data.issues_found.forEach(i => html += `<li>${i}</li>`);
+          html += '</ul>';
+          issuesFound.innerHTML = html;
+        } else {
+          issuesFound.innerHTML = `<p class="text-slate-600 text-sm mt-2">No issues detected ✅</p>`;
+        }
+
+        if (data.suggestions && data.suggestions.length) {
+          let html = `<h3 class="font-semibold text-slate-800">Suggestions:</h3><ul class="list-disc ml-5 mt-2 text-sm text-slate-700">`;
+          data.suggestions.forEach(s => html += `<li>${s}</li>`);
+          html += '</ul>';
+          suggestionsBlock.innerHTML = html;
+        } else {
+          suggestionsBlock.innerHTML = `<p class="text-slate-600 text-sm mt-2">No suggestions needed 🎉</p>`;
+        }
+
+      } catch (err) {
+        output.classList.remove('hidden');
+        codeStatus.innerHTML = `<span class='text-red-600 font-semibold'>Error:</span> ${err.message}`;
+      } finally {
+        reviewBtn.disabled = false;
+        reviewBtn.textContent = 'Review Code';
+      }
+    });
+  </script>
+</body>
+</html>
